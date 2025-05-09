@@ -19,10 +19,10 @@ void mainWindow::initUI(){
 	tabs = new QTabWidget(this);
 	setCentralWidget(tabs);
 
-	if(screenNumber != 0){
-		windowHandle()->setScreen(QApplication::screens()[screenNumber-1]);
-		showFullScreen();
-	}
+	//if(screenNumber != 0){
+	//	windowHandle()->setScreen(QApplication::screens()[screenNumber-1]);
+	//	showFullScreen();
+	//}
 
 	systemInfo* systemInfoWidget = new systemInfo();
 	systemInfoWidget->initUI();
