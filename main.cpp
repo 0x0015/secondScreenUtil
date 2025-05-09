@@ -13,6 +13,7 @@ int main(int argc, char** argv){
 
 	mainWindow* win = new mainWindow();
 	win->createWinId();
+	win->initialLoad();
 	win->setNoActivateWayland();
 	win->show();
 	win->initUI();

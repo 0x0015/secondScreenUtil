@@ -11,18 +11,20 @@
 #include <LayerShellQt/Window>
 #include <LayerShellQt/Shell>
 
-void mainWindow::initUI(){
+void mainWindow::initialLoad(){
 	settingsPath = QApplication::applicationDirPath() + "/secondScreenUtilSettings.ini";
 	loadSettings();
 
+	if(screenNumber != 0){
+		windowHandle()->setScreen(QApplication::screens()[screenNumber-1]);
+		showFullScreen();
+	}
+}
+
+void mainWindow::initUI(){
 	setWindowTitle("Second Screen Util");
 	tabs = new QTabWidget(this);
 	setCentralWidget(tabs);
-
-	//if(screenNumber != 0){
-	//	windowHandle()->setScreen(QApplication::screens()[screenNumber-1]);
-	//	showFullScreen();
-	//}
 
 	systemInfo* systemInfoWidget = new systemInfo();
 	systemInfoWidget->initUI();
@@ -82,9 +84,9 @@ void mainWindow::setNoActivateWayland(){
 	LayerShellQt::Shell::useLayerShell();
 
 	LayerShellQt::Window* layerWindow = LayerShellQt::Window::get(windowHandle());
+	layerWindow->setObjectName("secondScreenUtil");
 	layerWindow->setLayer(LayerShellQt::Window::LayerTop);
 	layerWindow->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
-	layerWindow->setAnchors({LayerShellQt::Window::AnchorBottom, LayerShellQt::Window::AnchorLeft, LayerShellQt::Window::AnchorRight});
 	layerWindow->setExclusiveZone(0);
 }
 
