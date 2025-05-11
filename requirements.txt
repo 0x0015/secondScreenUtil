@@ -1,0 +1,4 @@
+Note: for gpu stats, this project depends on amdgpu_top (available in the arch repos)
+
+or for steamfork with no more repos, installable by sudo pacman -U https://london.mirror.pkgbuild.com/extra/os/x86_64/amdgpu_top-0.10.4-1-x86_64.pkg.tar.zst (or any other mirror)
+

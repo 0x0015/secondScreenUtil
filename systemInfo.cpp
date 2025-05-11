@@ -4,6 +4,60 @@
 #include <iostream>
 #include <filesystem>
 #include <map>
+#include "json.hpp"
+#include <QGuiApplication>
+#include <QPalette>
+#include <QStyleHints>
+
+bool isDarkMode(){
+	const QPalette defaultPalette;
+	const auto text = defaultPalette.color(QPalette::WindowText);
+	const auto window = defaultPalette.color(QPalette::Window);
+	return text.lightness() > window.lightness();
+}
+
+dataOverTimeChart::dataOverTimeChart(QWidget* parent, unsigned int numData, float yMax) : chart(new QChart), series(new QLineSeries), numDatapoints(numData){
+	auto chartView = new QChartView(chart);
+	chart->addSeries(series);
+
+	axisX = new QValueAxis;
+	axisX->setRange(0, numDatapoints);
+	axisX->setLabelFormat(" ");
+	axisX->setTitleText("");
+
+	axisY = new QValueAxis;
+	currentMaxY = yMax;
+	axisY->setRange(0, yMax);
+	axisY->setLabelFormat(" ");
+
+	chart->addAxis(axisX, Qt::AlignBottom);
+	series->attachAxis(axisX);
+	chart->addAxis(axisY, Qt::AlignLeft);
+	series->attachAxis(axisY);
+	chart->legend()->hide();
+
+	auto layout = new QVBoxLayout(this);
+	layout->addWidget(chartView);
+
+	for(unsigned int i=0;i<numDatapoints;i++)
+		series->append(i, 0);
+
+	if(isDarkMode()){
+		chart->setTheme(QChart::ChartThemeDark);
+	}
+}
+
+void dataOverTimeChart::addDatapoint(float point){
+	if(point > currentMaxY){
+		currentMaxY = point;
+		axisY->setRange(0, currentMaxY);
+	}
+	auto points = series->points();
+	for(unsigned int i=0;i<numDatapoints-1;i++)
+		points[i] = QPointF(i, points[i+1].y());
+	points[numDatapoints-1] = QPointF(numDatapoints-1, point);
+	series->replace(points);
+}
 
 static inline const char *humanSize(std::size_t bytes){
 	const char *suffix[] = {"B", "KB", "MB", "GB", "TB"};
@@ -26,14 +80,55 @@ void systemInfo::initUI(unsigned int updateTime){
 	layout = new QGridLayout(this);
 	setLayout(layout);
 
+	QWidget* cpuWidget = new QWidget(this);
+	auto* cpuLayout = new QGridLayout(cpuWidget);
+	cpuWidget->setLayout(cpuLayout);
+	QWidget* gpuWidget = new QWidget(this);
+	auto* gpuLayout = new QGridLayout(gpuWidget);
+	gpuWidget->setLayout(gpuLayout);
+	layout->addWidget(cpuWidget, 0, 0);
+	layout->addWidget(gpuWidget, 0, 1);
+
+	unsigned int graphUpdateTime = 90;
+
+	cpuLabel = new QLabel("Cpu: ");
+	cpuLayout->addWidget(cpuLabel);
 	cpuUsageLabel = new QLabel("Cpu Usage: ");
-	layout->addWidget(cpuUsageLabel);
-	processCountLabel = new QLabel("Process Count: ");
-	layout->addWidget(processCountLabel);
+	cpuLayout->addWidget(cpuUsageLabel);
+	cpuUsageChart = new dataOverTimeChart(this, graphUpdateTime, 100);
+	cpuLayout->addWidget(cpuUsageChart);
 	ramLabel = new QLabel("Ram: ");
-	layout->addWidget(ramLabel);
+	cpuLayout->addWidget(ramLabel);
+	updateMemoryStats();
+	ramUsageChart = new dataOverTimeChart(this, graphUpdateTime, memoryStats.totalRam);
+	cpuLayout->addWidget(ramUsageChart);
 	swapLabel = new QLabel("Swap: ");
-	layout->addWidget(swapLabel);
+	swapUsageChart = new dataOverTimeChart(this, graphUpdateTime, memoryStats.totalSwap);
+	cpuLayout->addWidget(swapUsageChart);
+	cpuLayout->addWidget(swapLabel);
+	processCountLabel = new QLabel("Process Count: ");
+	cpuLayout->addWidget(processCountLabel);
+
+	gpuLabel = new QLabel("Gpu: ");
+	gpuLayout->addWidget(gpuLabel);
+	gpuUsageLabel = new QLabel("Gpu Usage: ");
+	gpuLayout->addWidget(gpuUsageLabel);
+	gpuUsageChart = new dataOverTimeChart(this, graphUpdateTime, 100);
+	gpuLayout->addWidget(gpuUsageChart);
+	vramLabel = new QLabel("Vram: ");
+	gpuLayout->addWidget(vramLabel);
+	updateGpuStats();
+	vramUsageChart = new dataOverTimeChart(this, graphUpdateTime, gpuStats.totalVram);
+	gpuLayout->addWidget(vramUsageChart);
+	gpuTempLabel = new QLabel("Gpu Temp: ");
+	gpuLayout->addWidget(gpuTempLabel);
+	gpuTempChart = new dataOverTimeChart(this, graphUpdateTime, 95);
+	gpuLayout->addWidget(gpuTempChart);
+	gpuPowerDrawLabel = new QLabel("Gpu Power: ");
+	gpuLayout->addWidget(gpuPowerDrawLabel);
+	gpuPowerChart = new dataOverTimeChart(this, graphUpdateTime, 8);
+	gpuLayout->addWidget(gpuPowerChart);
+	updateUI();
 
 	timer = new QTimer(this);
 	QObject::connect(timer, &QTimer::timeout, [this](){updateUI();});
@@ -41,11 +136,26 @@ void systemInfo::initUI(unsigned int updateTime){
 }
 
 void systemInfo::updateUI(){
-	cpuUsageLabel->setText("CPU Usage: " + QString::number(getCpuUsage()));
+	cpuLabel->setText("Cpu: " + QString::fromStdString(getCpuName()));
+	float cpuUsage = getCpuUsage();
+	cpuUsageLabel->setText("CPU Usage: " + QString::number(cpuUsage) + "%");
+	cpuUsageChart->addDatapoint(cpuUsage);
 	processCountLabel->setText("Process Count: " + QString::number(getProcessCount()));
 	updateMemoryStats();
 	ramLabel->setText("Ram: " + QString(humanSize(memoryStats.usedRam)) + " used / " + QString(humanSize(memoryStats.totalRam)) + " total");
-	swapLabel->setText("Swap: " + QString(humanSize(memoryStats.usedSwap)) + " used / " + humanSize(memoryStats.totalSwap) + " total");
+	ramUsageChart->addDatapoint(memoryStats.usedRam);
+	swapLabel->setText("Swap: " + QString(humanSize(memoryStats.usedSwap)) + " used / " + QString(humanSize(memoryStats.totalSwap)) + " total");
+	swapUsageChart->addDatapoint(memoryStats.usedSwap);
+	updateGpuStats();
+	gpuLabel->setText("Gpu: " + QString::fromStdString(gpuStats.name) + " (" + QString::fromStdString(gpuStats.gfxName) + ")");
+	vramLabel->setText("Vram: " + QString(humanSize(gpuStats.usedVram)) + " used / " + QString(humanSize(gpuStats.totalVram)) + " total");
+	vramUsageChart->addDatapoint(gpuStats.usedVram);
+	gpuTempLabel->setText("Gpu Temp: " + QString::number(gpuStats.temp));
+	gpuTempChart->addDatapoint(gpuStats.temp);
+	gpuPowerDrawLabel->setText("Gpu Power: " + QString::number(gpuStats.powerDraw) + " W");
+	gpuPowerChart->addDatapoint(gpuStats.powerDraw);
+	gpuUsageLabel->setText("GPU Usage: " + QString::number(gpuStats.usage) + "%");
+	gpuUsageChart->addDatapoint(gpuStats.usage);
 }
 
 float systemInfo::getCpuUsage(){
@@ -53,7 +163,7 @@ float systemInfo::getCpuUsage(){
 	auto lines = splitString(procStat, "\n");
 	if(lines.empty())
 		return 0;
-	auto vals = splitString(lines[0], " ");
+	auto vals = splitStringOnWhitespace(lines[0]);
 	if(vals[0] != "cpu")
 		return 0;
 
@@ -100,7 +210,7 @@ void systemInfo::updateMemoryStats(){
 
 	std::map<std::string_view, std::size_t> memInfoEntries;
 	for(const auto& line : lines){
-		const auto& parts = splitString(line, " ");
+		const auto& parts = splitStringOnWhitespace(line);
 		if(parts.size() < 2)
 			continue;
 		std::size_t partSize = std::stoull((std::string)parts[1]);
@@ -113,5 +223,65 @@ void systemInfo::updateMemoryStats(){
 	memoryStats.usedRam = memoryStats.totalRam - memInfoEntries["MemAvailable:"] - memInfoEntries["Buffers:"];
 	memoryStats.totalSwap = memInfoEntries["SwapTotal:"];
 	memoryStats.usedSwap = memoryStats.totalSwap - memInfoEntries["SwapFree:"];
+}
+
+std::string systemInfo::getCpuName(){
+	std::string cpuInfo = readFileIntoString("/proc/cpuinfo");
+	auto lines = splitString(cpuInfo, "\n");
+	if(lines.empty())
+		return "";
+	for(const auto& line : lines){
+		if(line.starts_with("model name")){
+			return (std::string)stripStr(splitString(line, ":")[1]);
+		}
+	}
+
+	return "";
+}
+
+std::string execCommand(const char* cmd) {
+	std::array<char, 128> buffer;
+	std::string result;
+	std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+	if (!pipe) {
+	    throw std::runtime_error("popen() failed!");
+	}
+	while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
+	    result += buffer.data();
+	}
+	return result;
+}
+
+std::size_t memDenomToSize(std::string_view denom){
+	if(denom == "KB" || denom == "KiB")
+		return 1024;
+	if(denom == "MB" || denom == "MiB")
+		return 1024 * 1024;
+	if(denom == "GB" || denom == "GiB")
+		return 1024 * 1024 * 1024;
+	return 0;
+}
+
+void systemInfo::updateGpuStats(){
+	std::string amdinfo = execCommand("amdgpu_top -d -J");
+	if(amdinfo.empty())
+		return;
+	gpuStats.temp = 0;
+	auto j = nlohmann::json::parse(amdinfo);
+	const auto& gpu = j[0];
+	gpuStats.name = gpu["DeviceName"];
+	gpuStats.gfxName = gpu["gfx_target_version"];
+	gpuStats.powerDraw = gpu["Sensors"]["Average Power"]["value"];
+	for(const auto& sensor : gpu["Sensors"]){
+		if(sensor.contains("unit") && sensor.contains("value") && sensor["unit"] == "C")
+			gpuStats.temp = std::max(gpuStats.temp, sensor["value"].get<float>());
+	}
+	gpuStats.totalVram = gpu["VRAM"]["Total VRAM"]["value"].get<std::size_t>() * memDenomToSize(gpu["VRAM"]["Total VRAM"]["unit"].get<std::string>());
+	gpuStats.usedVram = gpu["VRAM"]["Total VRAM Usage"]["value"].get<std::size_t>() * memDenomToSize(gpu["VRAM"]["Total VRAM Usage"]["unit"].get<std::string>());
+	gpuStats.usage = 0;
+	for(const auto& activity : gpu["gpu_activity"]){
+		if(activity.contains("unit") && activity.contains("value") && activity["unit"] == "%")
+			gpuStats.usage = std::max(gpuStats.usage, activity["value"].get<float>());
+	}
 }
 

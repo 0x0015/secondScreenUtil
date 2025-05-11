@@ -1,6 +1,7 @@
 #include "mainWindow.hpp"
 #include "systemInfo.hpp"
 #include "keyboardWidget.hpp"
+#include "config.hpp"
 #include <QApplication>
 #include <QSettings>
 #include <QWindow>
@@ -32,6 +33,9 @@ void mainWindow::initUI(){
 	keyboardWidget* keyboard = new keyboardWidget();
 	keyboard->initUI();
 	tabs->addTab(keyboard, "Keyboard");
+	configUI* config = new configUI();
+	config->initUI();
+	tabs->addTab(config, "Config");
 
 	setNoActivateX11();
 }

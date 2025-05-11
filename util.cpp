@@ -36,3 +36,38 @@ std::vector<std::string_view> splitString(std::string_view s, std::string_view d
 	return res;
 }
 
+std::vector<std::string_view> splitStringOnWhitespace(std::string_view s){
+	size_t pos_start = 0, delim_len = 1;
+	std::string_view token;
+	std::vector<std::string_view> res;
+
+
+	while(true){
+		std::size_t pos_end = std::string_view::npos;
+		for(const auto& delim : {" ", "\t", "\n", "\r"}){
+			std::size_t pos_end_temp = s.find(delim, pos_start);
+			if(pos_end_temp == std::string_view::npos)
+				continue;
+			pos_end = std::min(pos_end, pos_end_temp);
+		}
+		if(pos_end == std::string_view::npos)
+			break;
+		token = s.substr (pos_start, pos_end - pos_start);
+		pos_start = pos_end + delim_len;
+		if(!token.empty())
+			res.push_back (token);
+	}
+
+	if(!s.substr(pos_start).empty())
+		res.push_back (s.substr (pos_start));
+	return res;
+}
+
+std::string_view stripStr(std::string_view str){
+	while(!str.empty() && std::isspace(str.front()))
+		str = str.substr(1);
+	while(!str.empty() && std::isspace(str.back()))
+		str = str.substr(0, str.size()-2);
+	return str;
+}
+

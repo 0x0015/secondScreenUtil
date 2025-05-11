@@ -17,7 +17,7 @@ if(CCACHE_FOUND)
 	set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
 endif()
 
-find_package(Qt6 COMPONENTS Core Widgets Gui REQUIRED)
+find_package(Qt6 COMPONENTS Core Widgets Gui Charts REQUIRED)
 get_target_property(QtCoreLocation Qt6::Core LOCATION)
 message(STATUS "Qt6::Core resolved to: ${QtCoreLocation}")
 
@@ -31,8 +31,9 @@ add_executable(secondScreenUtil
     util.cpp
     keyboardWidget.cpp
     keyboard.cpp
+    config.cpp
 )
 
 target_compile_options(secondScreenUtil PRIVATE -Wall)
-target_link_libraries(secondScreenUtil PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets X11 LayerShellQt::Interface)
+target_link_libraries(secondScreenUtil PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Charts X11 LayerShellQt::Interface)
 
