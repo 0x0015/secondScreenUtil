@@ -269,31 +269,31 @@ void systemInfo::updateGpuStats(){
 	gpuStats.temp = 0;
 	auto j = nlohmann::json::parse(amdinfo);
 	const auto& gpu = j[0];
-	if(!gpu.contains("DeviceName")){
+	if(!gpu.contains("DeviceName") || !gpu["DeviceName"].is_string()){
 		std::cerr<<"Error: amdgpu_top output did not contain a DeviceName field"<<std::endl;
 		return;
 	}
 	gpuStats.name = gpu["DeviceName"];
-	if(!gpu.contains("gfx_target_version")){
+	if(!gpu.contains("gfx_target_version") || !gpu["gfx_target_version"].is_string()){
 		std::cerr<<"Error: amdgpu_top output did not contain a gfx_target_version field"<<std::endl;
 		return;
 	}
 	gpuStats.gfxName = gpu["gfx_target_version"];
-	if(!gpu.contains("Sensors") || !gpu["Sensors"].contains("Average Power") || !gpu["Sensors"]["Average Power"].contains("value")){
+	if(!gpu.contains("Sensors") || !gpu["Sensors"].contains("Average Power") || !gpu["Sensors"]["Average Power"].contains("value") || !gpu["Sensors"]["Average Power"]["value"].is_number()){
 		std::cerr<<"Error: amdgpu_top output did not contain a Sensors->Average Power->value field"<<std::endl;
 		return;
 	}
 	gpuStats.powerDraw = gpu["Sensors"]["Average Power"]["value"];
 	for(const auto& sensor : gpu["Sensors"]){
-		if(sensor.contains("unit") && sensor.contains("value") && sensor["unit"] == "C")
+		if(sensor.contains("unit") && sensor.contains("value") && sensor["value"].is_number() && sensor["unit"] == "C")
 			gpuStats.temp = std::max(gpuStats.temp, sensor["value"].get<float>());
 	}
-	if(!gpu.contains("VRAM") || !gpu["VRAM"].contains("Total VRAM") || !gpu["VRAM"]["Total VRAM"].contains("value")){
+	if(!gpu.contains("VRAM") || !gpu["VRAM"].contains("Total VRAM") || !gpu["VRAM"]["Total VRAM"].contains("value") || !gpu["VRAM"]["Total VRAM"]["value"].is_number()){
 		std::cerr<<"Error: amdgpu_top output did not contain a VRAM->Total VRAM->value field"<<std::endl;
 		return;
 	}
 	gpuStats.totalVram = gpu["VRAM"]["Total VRAM"]["value"].get<std::size_t>() * memDenomToSize(gpu["VRAM"]["Total VRAM"]["unit"].get<std::string>());
-	if(!gpu.contains("VRAM") || !gpu["VRAM"].contains("Total VRAM Usage") || !gpu["VRAM"]["Total VRAM Usage"].contains("value")){
+	if(!gpu.contains("VRAM") || !gpu["VRAM"].contains("Total VRAM Usage") || !gpu["VRAM"]["Total VRAM Usage"].contains("value") || !gpu["VRAM"]["Total VRAM Usage"]["value"].is_number()){
 		std::cerr<<"Error: amdgpu_top output did not contain a VRAM->Total VRAM Usage->value field"<<std::endl;
 		return;
 	}
@@ -304,7 +304,7 @@ void systemInfo::updateGpuStats(){
 		return;
 	}
 	for(const auto& activity : gpu["gpu_activity"]){
-		if(activity.contains("unit") && activity.contains("value") && activity["unit"] == "%")
+		if(activity.contains("unit") && activity.contains("value") && activity["value"].is_number() && activity["unit"] == "%")
 			gpuStats.usage = std::max(gpuStats.usage, activity["value"].get<float>());
 	}
 }
