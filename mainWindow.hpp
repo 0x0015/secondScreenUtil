@@ -4,6 +4,10 @@
 
 class mainWindow : public QMainWindow{
 public:
+	enum Theme{
+		Native,
+		Dark
+	} theme;
 	QTabWidget* tabs;
 	QString settingsPath;
 	void initUI();

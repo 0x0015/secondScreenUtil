@@ -20,6 +20,38 @@ void mainWindow::initialLoad(){
 		windowHandle()->setScreen(QApplication::screens()[screenNumber-1]);
 		showFullScreen();
 	}
+
+	switch(theme){
+		case Native:
+			break;
+		case Dark:{
+			qDebug()<<"Setting dark palette";
+			QPalette darkPalette;
+			darkPalette.setColor(QPalette::Window,QColor(53,53,53));
+			darkPalette.setColor(QPalette::WindowText,Qt::white);
+			darkPalette.setColor(QPalette::Disabled,QPalette::WindowText,QColor(127,127,127));
+			darkPalette.setColor(QPalette::Base,QColor(42,42,42));
+			darkPalette.setColor(QPalette::AlternateBase,QColor(66,66,66));
+			darkPalette.setColor(QPalette::ToolTipBase,Qt::white);
+			darkPalette.setColor(QPalette::ToolTipText,Qt::white);
+			darkPalette.setColor(QPalette::Text,Qt::white);
+			darkPalette.setColor(QPalette::Disabled,QPalette::Text,QColor(127,127,127));
+			darkPalette.setColor(QPalette::Dark,QColor(35,35,35));
+			darkPalette.setColor(QPalette::Shadow,QColor(20,20,20));
+			darkPalette.setColor(QPalette::Button,QColor(53,53,53));
+			darkPalette.setColor(QPalette::ButtonText,Qt::white);
+			darkPalette.setColor(QPalette::Disabled,QPalette::ButtonText,QColor(127,127,127));
+			darkPalette.setColor(QPalette::BrightText,Qt::red);
+			darkPalette.setColor(QPalette::Link,QColor(42,130,218));
+			darkPalette.setColor(QPalette::Highlight,QColor(42,130,218));
+			darkPalette.setColor(QPalette::Disabled,QPalette::Highlight,QColor(80,80,80));
+			darkPalette.setColor(QPalette::HighlightedText,Qt::white);
+			darkPalette.setColor(QPalette::Disabled,QPalette::HighlightedText,QColor(127,127,127));
+			
+			qApp->setPalette(darkPalette);
+			}
+			break;
+	}
 }
 
 void mainWindow::initUI(){
@@ -34,6 +66,7 @@ void mainWindow::initUI(){
 	keyboard->initUI();
 	tabs->addTab(keyboard, "Keyboard");
 	configUI* config = new configUI();
+	config->win = this;
 	config->initUI();
 	tabs->addTab(config, "Config");
 
@@ -42,16 +75,25 @@ void mainWindow::initUI(){
 
 void mainWindow::loadSettings(){
 	QSettings settings(settingsPath, QSettings::IniFormat);
+	bool doSave = false;
 	if(settings.contains("screenNumber")){
 		screenNumber = settings.value("screenNumber").toUInt();
 	}else{
-		saveSettings();//if no settings exist, make one
+		doSave = true;//if no settings exist, make one
 	}
+	if(settings.contains("theme")){
+		theme = (Theme)settings.value("theme").toUInt();
+	}else{
+		doSave = true;
+	}
+	if(doSave)
+		saveSettings();
 }
 
 void mainWindow::saveSettings(){
 	QSettings settings(settingsPath, QSettings::IniFormat);
 	settings.setValue("screenNumber", screenNumber);
+	settings.setValue("theme", (unsigned int)theme);
 }
 
 void mainWindow::setNoActivateX11(){
